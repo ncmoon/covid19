@@ -1,0 +1,26 @@
+<svg version="1.1"
+     baseProfile="full"
+     width="600" height="200"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <rect width="100%" height="100%" fill="white" />
+  
+  <line x1="55" y1="180" x2="580" y2="180" stroke="black" />
+
+  <line x1="100" y1="185" x2="100" y2="175" stroke="black" />
+  <line x1="200" y1="185" x2="200" y2="45" stroke="black" />
+  <line x1="350" y1="185" x2="350" y2="45" stroke="black" />
+  <line x1="550" y1="185" x2="550" y2="175" stroke="black" />
+
+  <line x1="100" y1="180" x2="200" y2="50" stroke="blue" />
+  <line x1="200" y1="50" x2="350" y2="50" stroke="blue" />
+  <line x1="350" y1="50" x2="550" y2="180" stroke="blue" />
+
+  <polygon points="580 180 578 177 578 183" stroke="black" fill="black" />
+
+  <text x="100" y="195" font-size="12" text-anchor="middle" fill="black" stroke="black">t0</text>
+  <text x="200" y="195" font-size="12" text-anchor="middle" fill="black" stroke="black">t1</text>
+  <text x="350" y="195" font-size="12" text-anchor="middle" fill="black" stroke="black">t2</text>
+  <text x="550" y="195" font-size="12" text-anchor="middle" fill="black" stroke="black">t3</text>
+
+</svg>

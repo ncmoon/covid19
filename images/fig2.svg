@@ -24,7 +24,7 @@
 
   <polygon points="221 150 218 147 218 153" stroke="black" fill="black"  transform="rotate(20,230,150)" />
   <polygon points="390 120 387 117 387 123" stroke="black" fill="black" transform="rotate(-16.5,400,120)" />
-  <polygon points="475 80 472 77 472 83" stroke="black" fill="black" transform="rotate(-60,450,80)" />
+  <polygon points="475 120 472 117 472 123" stroke="black" fill="black" transform="rotate(-27.5,400,120)" />
   <polygon points="541 100 538 97 538 103" stroke="black" fill="black" transform="rotate(17,550,100)" />
 
   <line x1="550" y1="180" x2="580" y2="180" stroke="black" />

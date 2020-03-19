@@ -1,0 +1,40 @@
+
+CREATE DATABASE IF NOT EXISTS covid;
+USE covid;
+ 
+DROP PROCEDURE IF EXISTS dummyRecords; 
+ 
+delimiter // 
+CREATE PROCEDURE dummyRecords(p1 INT)
+BEGIN
+  WHILE p1 > 0 DO
+    INSERT INTO Phone
+      (PhoneNum, HomeX, HomeY, WorkX, WorkY)
+    VALUES
+      (CONCAT('0700 ', (100000 + p1)), -0.5 + RAND(), 51.25 + RAND()/2, -0.5 + RAND(), 51.25 + RAND()/2);
+    SET p1 = p1 - 1; 
+  END WHILE;
+END//
+
+
+
+DROP TABLE IF EXISTS Encounters;
+DROP TABLE IF EXISTS PhoneLocations;
+DROP TABLE IF EXISTS Phone;
+
+CREATE TABLE Phone (
+  PhoneID INT NOT NULL AUTO_INCREMENT PRIMARY KEY, PhoneNum VARCHAR(20), HomeX DOUBLE, HomeY DOUBLE, WorkX DOUBLE, WorkY DOUBLE
+);
+
+CREATE TABLE PhoneLocations (
+  PhoneID INT NOT NULL, LocID INT NOT NULL, X0 DOUBLE, X1 DOUBLE, Y0 DOUBLE, Y1 DOUBLE, 
+  T0 DATETIME, T1 DATETIME, T2 DATETIME, T3 DATETIME, Hard DOUBLE, Soft DOUBLE, 
+  PRIMARY KEY (PhoneID, LocID), FOREIGN KEY (PhoneID) REFERENCES Phone(PhoneID)
+);
+
+CREATE TABLE Encounters (
+  PhoneIDA INT, LocIDA INT, PhoneIDB INT, LocIDB INT, SpatialScore DOUBLE, TemporalScore DOUBLE,
+  FOREIGN KEY (PhoneIDA, LocIDA) REFERENCES PhoneLocations(PhoneID, LocID)
+);
+
+

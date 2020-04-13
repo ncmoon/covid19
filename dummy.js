@@ -2,6 +2,7 @@
 console.log('dummy.js - covid creating dummy records');
 
 const
+  fs = require('fs'),
   mysql = require('mysql');
 
 
@@ -17,201 +18,107 @@ var pool  = mysql.createPool({
 });
 
 const
-  msPerDay = 24 * 60 * 60 * 1000;
+  msPerHour = 60 * 60 * 1000,
+  msPerDay = 24 * msPerHour,
+  
+  p0 = 1,                                  //initial PhoneID
+  p1 = 1000,                               //last PhoneID
+  q0 = (new Date('2020-01-01')).valueOf(), //first day
+  q1 = (new Date('2020-03-15')).valueOf(); //last day
+var
+  p, q,
+  dataPhones = [],
+  dataLocations = [];
 
-function addToDay(day, mS) {
-  //console.group();console.log(day, mS);
-  var result = new Date(day.valueOf() + mS);
-  //console.log(result);console.groupEnd();
-  return result;
-} //addToDay
-
+function asISO(v) {
+  return (new Date(v)).toISOString().slice(0, -1);
+} //asISO
 
 /*
-  TODO  - convert so can use LOAD DATA 
-
-  PhoneID LocID     X0                    X1                    Y0                Y1                T0                  T1                  T2                  T3                  Hard Soft
-  217362	18262000	-0.18107886650958882	-0.18087886650958884	51.63926925192524	51.63946925192525	2020-01-01 00:00:00	2020-01-01 01:57:59	2020-01-01 06:16:12	2020-01-01 06:39:20	\N	\N
-
-  const
-    TAB = '\t',
-    CRLF = '\r\n';
-    data = [[pID, lID, x0, x1, y0, y1, t0, t1, t2, t3, '\N', '\N'], ...];
-
-    data = data.map(function(row) {
-      return row.join(TAB);
-    });
-    return data.join('\r\n');
-  
-
-
-SELECT * FROM PhoneLocations LIMIT 1 INTO OUTFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/test.txt';
-
-
-
-
-
+1	1	POINT(-0.5 51.25)	POINT(0 51.35)	2020-01-01 00:53:54	2020-01-01 00:53:54	2020-01-01 00:53:54	2020-01-01 00:53:54	\N	\N
 */
 
+function asPoint(x, y) {
+  return 'POINT(' + x + ' ' + y + ')';
+} //asPoint
 
 
+function asPolygon(x0, y0, x1, y1) {
+  //NB: this only works properly if x0 < x1 and y0 < y1
+  return 'POLYGON((' + x0 + ' ' + y0 + ',' + x0 + ' ' + y1 + ',' + x1 + ' ' + y1 + ',' + x1 + ' ' + y0 + ',' + x0 + ' ' + y0 + '))';
+} //asPolygon
 
-
-function insertPhone(i, from, to) {
+function makeDay(data, day) {
+  //TODO, starting around 1am add home, then add random events from around 3 - 10am --> 5-11pm involving work and selected other locations
   var
-    homeX = -0.5 + Math.random(), 
-    homeY = 51.25 + Math.random()/2,
-    workX = -0.5 + Math.random(),
-    workY = 51.25 + Math.random()/2,
-    d;
+    d = Math.trunc(q/msPerDay), //day as number
+    index = d * 1000, //allows up to 1000 events per day 
+    day2 = day + (22 * msPerHour);
+  //console.log(day, day2);
+  while (day < day2) {
+    let
+      x = -0.5 + Math.random(),
+      y = 51.25 + Math.random()/2;
 
-  function makeDay(day) {
-    //TODO, starting around 1am add home, then add random events from around 3 - 10am --> 5-11pm involving work and selected other locations
-    var
-      result = '',
-      values = '',
-      index = Math.floor(day/msPerDay)*1000; //this makes an artifical limit of 1000 events|phoneLocations per day
-
-    function makeValues(index, x0, x1, y0, y1, t0, t1, t2, t3) {
-      return `(@ph, {loc}, {x0}, {x1}, {y0}, {y1}, '{t0}', '{t1}', '{t2}', '{t3}')`.replace('{loc}', index)
-        .replace('{x0}', x0).replace('{x1}',  x1).replace('{y0}', y0).replace('{y1}', y1)
-        .replace('{t0}', t0).replace('{t1}', t1).replace('{t2}', t2).replace('{t3}', t3);
-    } //makeValues 
-
-
-    var day2 = addToDay(day, 22*60*60*1000);
-    //console.log(day, day2);
-    while (day.valueOf() < day2.valueOf()) {
-      let
-        x = -0.5 + Math.random(),
-        y = 51.25 + Math.random()/2;
-      if (values) { values += ','; }
-      values += makeValues(index, x - 0.0001, x + 0.0001, y - 0.0001 , y + 0.0001, 
-          day.toISOString().slice(0, -1), (day = addToDay(day, 2*60*60*1000 * Math.random())).toISOString().slice(0, -1),
-          (day = addToDay(day, 10*60*60*1000 * Math.random())).toISOString().slice(0, -1),
-          (day = addToDay(day, 2*60*60*1000 * Math.random())).toISOString().slice(0, -1));
-      index++;
-    }
-    //values += ',' + makeValues(index, x0, x1, y0, y1, t0, t1, t2, t3);
-
-    result += ` 
-INSERT INTO PhoneLocations 
-  (PhoneID, LocID, X0, X1, Y0, Y1, T0, T1, T2, T3)
-VALUES
-  {values};`.replace('{values}', values);
-    return result;  
-  } //makeDay
-
-  var
-    result = `
-  INSERT INTO Phone
-    (PhoneNum, HomeX, HomeY, WorkX, WorkY)
-  VALUES
-    (CONCAT('0700 ', {i}), -0.5 + RAND(), 51.25 + RAND()/2, -0.5 + RAND(), 51.25 + RAND()/2);
-  SET @ph = LAST_INSERT_ID();  
-  `.replace('{i}', 100000 + i).replace('{homeX}', homeX).replace('{homeY}', homeY).replace('{workX}', workX).replace('{workY}', workY);
-  
-  d = from;
-  while (d <= to) {
-    result += makeDay(d);
-    d = addToDay(d, msPerDay);
+    data.push([
+      p, index, asPolygon(x - 0.0001, y - 0.0001, x + 0.0001, y + 0.0001), 
+      asISO(day), asISO(day = day + 2*60*60*1000 * Math.random()), 
+      asISO(day = day + 10*60*60*1000 * Math.random()), asISO(day = day + 2*60*60*1000 * Math.random()), '\\N', '\\N'
+    ]);
+    index++;
   }
-  return result;
-} //insertPhone
+} //makeDay
 
 
-function parallel(x, cb) {
-  var
-    ref = x.length;
-  x.forEach(function(y, i, x) {
-    if (typeof y == 'function') {
-      y = y();
-    }
-    pool.query(y, function (error, results, fields) {
-      if (error) {
-        ref = 0; 
-      }
-      else {
-        ref--;
-      }
-      if (ref <= 0) {
-        cb(results); 
-      }
-    });
-  });
-} //parallel
-
-function series(x, cb) {
-  console.assert(Array.isArray(x));
-  //console.group('series()');console.log(x);
+function toTxtFile(data, name) {
+  const
+    TAB = '\t',
+    LF = '\n';
   var 
-    i = 0;
-  
-  function step(y) {
-    //console.group('AsyncExec.series step');
-   
-    if (typeof y == 'function') {
-      y = y();
-    }
-    pool.query(y, function (error, results, fields) {
-      if (error) {
-        i = x.length; 
-      }
-      else {
-        i++;
-      }
-      if (i < x.length) {
-        step(x[i]);
-      }
-      else {
-        cb(error, results, fields, i); 
-      }
-      //console.log(error, results, fields);
-    });
-    //console.groupEnd();
-  } //step
-  
-  step(x[i]);
-  //console.groupEnd();
-} //series     
-
-
-
-function makeFew(a, b) {
-  return function() {
-    var result = '';
-    for (i = a; i < b; i++) {
-      result += insertPhone(i, new Date('2020-01-01'), new Date('2020-03-15'));
-    }
-    return result;
-  };
-} //makeFew
-
-function makeMany(a, b) {
-  var result = [];
-  while (a < b) {
-    result.push(makeFew(a, a + 10));
-    a += 10;
+    path = 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/' + name,
+    result = '';
+  data = data.map(function(row) {
+    return row.join(TAB);
+  });
+  result = data.join(LF);
+  if (fs.existsSync(path)) {
+    fs.unlinkSync(path);
   }
-  return result;
-} //makeMany
+  fs.writeFileSync(path, result);
+} //toTxtFile
 
 
-var x = [].concat(
-  makeMany(0, 1000), 
-  `SELECT COUNT(*) AS N FROM Phone;SELECT COUNT(*) AS N FROM PhoneLocations`
-);
 
-series(x, function(error, results, fields, index) {
-  if (error) {
-    //console.log(error, results, fields, index);
-    console.log(error);
+for (p = p0; p <= p1; p++) {     //each phone
+  dataPhones.push([p, '0700 ' + (1000000 + p)]);
+  for (q = q0; q <= q1; q += msPerDay) {   //each day
+    makeDay(dataLocations, q);
+  }
+}
+toTxtFile(dataPhones, 'dummyPhones.txt');
+toTxtFile(dataLocations, 'dummyLocations.txt');
+
+pool.query(
+`DELETE FROM PhoneLocations;DELETE FROM Phone;
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/dummyPhones.txt' REPLACE INTO TABLE Phone`, function(err, results, fields) {
+  if (!err) {
+    pool.query(
+  `LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/dummyLocations.txt' 
+   REPLACE INTO TABLE PhoneLocations
+   (PhoneID, LocID, @b, T0, T1, T2, T3, Hard, Soft)
+   SET Box = ST_PolyFromText(@b);`, function(err, results, fields) {
+      console.log(err);
+      pool.end(function (err) {
+        console.log('dummy.js end.');
+      });
+    });
   }
   else {
-    console.log('records created: ', results[0][0].N, results[1][0].N);
-  }  
-  pool.end(function (err) {
-    console.log('dummy.js end.');
-  });
+    console.log(err);
+    pool.end(function (err) {
+      console.log('dummy.js end.');
+    });
+  }
 });
+
 console.log('dummy.js end script.');
